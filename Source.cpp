@@ -2,8 +2,8 @@
 #include <fstream>
 #include <vector>
 #include <bitset>
+#include <algorithm>
 #include <string>
-#include <cstdint>
 
 using namespace std;
 
@@ -36,15 +36,15 @@ struct BITMAPINFOHEADER
 };
 
 
-class BMP
+class BMPEncoder
 {
 public:
-	BMP(const string& path) 
+	BMPEncoder(const string& path) 
 		: path(path){}
 
 	void read();
 	
-	void write(const int& width, const int& height);
+	void hide(const string& written_data);
 
 private:
 	BITMAPFILEHEADER file_header;
@@ -58,7 +58,7 @@ private:
 };
 
 
-int BMP::read_inversed_data(const unsigned char arr[], const int& amount) const
+int BMPEncoder::read_inversed_data(const unsigned char arr[], const int& amount) const
 {
 	int result = 0;
 	for (size_t i = 0; i < amount; i++)
@@ -70,7 +70,7 @@ int BMP::read_inversed_data(const unsigned char arr[], const int& amount) const
 }
 
 
-void BMP::valid_bmp(ifstream& bmp) const
+void BMPEncoder::valid_bmp(ifstream& bmp) const
 {
 	bmp.seekg(0, SEEK_END);
 	int filesize = bmp.tellg();
@@ -96,7 +96,7 @@ void BMP::valid_bmp(ifstream& bmp) const
 }
 
 
-void BMP::filling_headers(const unsigned char headers_data[])
+void BMPEncoder::filling_headers(const unsigned char headers_data[])
 {
 	file_header.Type = read_inversed_data(headers_data, 2);
 	file_header.file_Size = read_inversed_data(headers_data + 2, 4);
@@ -117,7 +117,7 @@ void BMP::filling_headers(const unsigned char headers_data[])
 }
 
 
-void BMP::read()
+void BMPEncoder::read()
 {
 	ifstream bmp;
 	bmp.exceptions(ifstream::badbit | ifstream::failbit);
@@ -151,12 +151,49 @@ void BMP::read()
 }
 
 
+void BMPEncoder::hide(const string& written_data)
+{
+	ofstream bmp;
+	bmp.exceptions(ifstream::badbit | ifstream::failbit);
+
+	try
+	{
+		int max_hiding_size = info_header.Width * info_header.Height * 3;
+		if (sizeof(written_data) > max_hiding_size)
+			throw runtime_error("very much size written text");
+		
+		vector<uint8_t>::iterator data_iter = data.begin();
+		for (const char& symb : written_data)
+		{
+			*data_iter = symb;
+			data_iter++;
+		}
+
+		bmp.open(path, ios::binary | ios::out | ios::in);
+		bmp.seekp(file_header.OffsetData);
+		copy(data.begin(), data.end(), ostreambuf_iterator<char>(bmp));
+		bmp.close();
+	}
+	catch (const ifstream::failure& ex)
+	{
+		bmp.close();
+		throw ex;
+	}
+	catch (const exception& ex)
+	{
+		bmp.close();
+		throw ex;
+	}
+}
+
+
 int main(int argc, char* argv[])
 {
-	BMP bmp_file(argv[1]);
+	BMPEncoder bmp_file("temp.bmp");
 	try
 	{
 		bmp_file.read();
+		bmp_file.hide("____________BLIN BLYAD____________");
 	}
 	catch (const exception& ex)
 	{
